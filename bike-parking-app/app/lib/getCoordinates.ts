@@ -1,6 +1,9 @@
 interface DataItem {
   longitude: string;
-  latitude: string;
+  latitude: string; 
+  Site_ID : string;
+  IFOAddress:string;
+
 }
 
 async function getCoordinates(): Promise<DataItem[]> {
@@ -11,6 +14,8 @@ async function getCoordinates(): Promise<DataItem[]> {
     const allData: DataItem[] = jsonData.map((item: any) => ({
       longitude: item.x_coordinate.toString(),
       latitude: item.y_coordinate.toString(),
+      Site_ID: item.site_id,
+      IFOAddress:item.ifoaddress,
     }));
 
     return allData;
