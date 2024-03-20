@@ -11,7 +11,7 @@ async function getCoordinates(): Promise<DataItem[]> {
     let page = 1;
 
     while (hasMoreData) {
-      const response = await fetch(`http://bike-parking.onrender.com/Parking_data/?X=-73.941009&Y=40.618406&page=${page}`);
+      const response = await fetch(`https://bike-parking.onrender.com/Parking_data/?X=-73.941009&Y=40.618406&page=${page}`);
       const jsonData = await response.json();
 
       const data: DataItem[] = jsonData.map((item: any) => ({
