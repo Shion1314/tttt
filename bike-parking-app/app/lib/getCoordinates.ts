@@ -3,9 +3,14 @@ interface DataItem {
   latitude: string;
 }
 
-// Utilize parallel data fetching
+let cachedData: DataItem[] | null = null;
+
 async function getCoordinates(): Promise<DataItem[]> {
   try {
+    if (cachedData !== null) {
+      return cachedData;
+    }
+
     let allData: DataItem[] = [];
     let hasMoreData = true;
     let page = 1;
@@ -26,6 +31,9 @@ async function getCoordinates(): Promise<DataItem[]> {
         page++; // Increment page for next request
       }
     }
+
+    // Cache the fetched data
+    cachedData = allData;
 
     return allData;
   } catch (error) {
