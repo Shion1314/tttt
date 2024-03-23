@@ -16,13 +16,17 @@ import { Layers } from "./svgs";
 import L from "leaflet";
 
 interface MarkerData {
-  coordinates: [number, number];
-  title: string;
+  longitude: number;
+  latitude: number;
+  Site_ID: string;
+  IFOAddress: string;
+  RackType: string;
 }
 interface UserCoordinatesItem {
   longitude: number;
   latitude: number;
 }
+
 
 // Loader component for showing loading animation
 const Loader = () => {
@@ -109,7 +113,7 @@ function UserLocationMarker() {
 const MapComponent: FC = () => {
   const [userCoordinates, setUserCoordinates] =
     useState<UserCoordinatesItem | null>(null);
-  const [markerData, setMarkerData] = useState<MarkerData | null>(null);
+  const [markerData, setMarkerData] = useState<MarkerData[] | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [mapLayer, setMapLayer] = useState<string>("street");
   const mapRef = useRef<any | null>(null); // Declare useRef to reference map
@@ -119,7 +123,7 @@ const MapComponent: FC = () => {
     const fetchUserCoords = async () => {
       try {
         const userCoords = await getUserCoordinates();
-        // console.log("User coordinates:", userCoords);
+         console.log("User coordinates:", userCoords);
         setUserCoordinates(userCoords);
       } catch (error) {
         console.error(error);
@@ -135,15 +139,16 @@ const MapComponent: FC = () => {
         setLoading(true);
         try {
           const data = await getCoordinates();
-          console.log(data);
-          // setMarkerData(data);
+       console.log(data);
+          
+          setMarkerData(data);
         } catch (error) {
           console.error(error);
         }
         setLoading(false);
       };
-
-       fetchData();
+  
+      fetchData();
     }
   }, []);
 
@@ -229,11 +234,15 @@ const MapComponent: FC = () => {
           subdomains={["mt1", "mt2", "mt3"]}
         /> */}
         {/* Conditionally render the marker */}
-        {markerData && markerData.coordinates && (
-          <Marker position={markerData.coordinates}>
-            <Popup>{markerData.title}</Popup>
-          </Marker>
-        )}
+        {markerData && markerData.map((marker, index) => (
+        <Marker key={index} position={[marker.latitude, marker.longitude]}>
+       <Popup>
+  {"Site ID: " + marker.Site_ID + "\n" +
+   "IFOAddress: " + marker.IFOAddress + "\n" +
+   "Rack_Type: " + marker.RackType}
+</Popup>
+        </Marker>
+      ))}
         <UserLocationMarker />
         <ZoomHandler />
       </MapContainer>
