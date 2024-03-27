@@ -16,8 +16,8 @@ import { Layers } from "./svgs";
 import L from "leaflet";
 
 interface MarkerData {
-  longitude: number;
-  latitude: number;
+  x_coordinate: number;
+  y_coordinate: number;
   Site_ID: string;
   IFOAddress: string;
   RackType: string;
@@ -258,7 +258,7 @@ const MapComponent: FC = () => {
         /> */}
         {/* Conditionally render the marker */}
         {markerData && markerData.map((marker, index) => (
-        <Marker key={index} position={[marker.latitude, marker.longitude]}>
+        <Marker key={index} position={[marker.y_coordinate, marker.x_coordinate]}>
         <Popup>
           {"Site ID: " + marker.Site_ID + "\n" +
           "IFOAddress: " + marker.IFOAddress + "\n" +

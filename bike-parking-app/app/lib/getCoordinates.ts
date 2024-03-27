@@ -1,8 +1,8 @@
 import getUserCoordinates from "./getUserCoordinates";
 
 interface DataItem {
-  longitude: number;
-  latitude: number;
+  x_coordinate: number;
+  y_coordinate: number;
   Site_ID: string;
   IFOAddress: string;
   RackType: string;
@@ -19,8 +19,8 @@ async function getCoordinates(): Promise<DataItem[] | null> {
 
     
     const coordinates = jsonData.map((item: any) => ({
-      latitude: item.y_coordinate,
-      longitude: item.x_coordinate,
+      y_coordinate: item.y_coordinate,
+      x_coordinate: item.x_coordinate,
         Site_ID: item.site_id,
         IFOAddress: item.ifoaddress,
         RackType: item.racktype,
