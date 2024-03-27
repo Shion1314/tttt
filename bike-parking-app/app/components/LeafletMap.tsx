@@ -6,6 +6,7 @@ import {
   Popup,
   useMapEvents,
   useMap,
+  Circle,
 } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import "leaflet-defaulticon-compatibility/dist/leaflet-defaulticon-compatibility.webpack.css";
@@ -13,7 +14,10 @@ import "leaflet-defaulticon-compatibility";
 import getCoordinates from "../lib/getCoordinates";
 import getUserCoordinates from "../lib/getUserCoordinates";
 import { Layers } from "./svgs";
-import L from "leaflet";
+import L, { LatLng } from "leaflet";
+import { latLng } from "leaflet";
+import "leaflet-rotate";
+
 
 interface MarkerData {
   longitude: number;
@@ -26,7 +30,6 @@ interface UserCoordinatesItem {
   longitude: number;
   latitude: number;
 }
-
 
 // Loader component for showing loading animation
 const Loader = () => {
@@ -55,6 +58,7 @@ const Loader = () => {
   );
 };
 
+
 // function LocationMarker() {
 //   const [position, setPosition] = useState<[number, number] | null>(null);
 //   const map = useMapEvents({
@@ -82,33 +86,129 @@ const currentLocationIcon = new L.Icon({
   // https://www.svgrepo.com/svg/333873/current-location
 });
 
+type GeolocationPosition = {
+  lat: number;
+  lng: number;
+};
+type LocationStatus = "accessed" | "denied" | "unknown" | "error";
+
 function UserLocationMarker() {
-  const [position, setPosition] = useState<[number, number] | null>(null);
-  const [bbox, setBbox] = useState<string[]>([]);
+  const [locationStatus, setLocationStatus] =
+    useState<LocationStatus>("unknown");
+  const [position, setPosition] = useState<GeolocationPosition | null>(null);
+  const [accuracy, setAccuracy] = useState<number | null>(null);
+  const [prevPosition, setPrevPosition] = useState<LatLng | null>(null);
+  const [userMarkerInView, setUserMarkerInView] = useState<boolean>(false);
 
   const map = useMap();
 
   useEffect(() => {
     map.locate().on("locationfound", function (e) {
       const { lat, lng } = e.latlng;
-      setPosition([lat, lng]);
-      map.flyTo(e.latlng, 18, { animate: true, duration: 1.5 });
-      const radius = e.accuracy;
-      const circle = L.circle(e.latlng, radius);
-      circle.addTo(map);
-      setBbox(e.bounds.toBBoxString().split(","));
+      map.flyTo(e.latlng, 19, { animate: true, duration: 1.5 });
     });
   }, [map]);
 
+  useEffect(() => {
+    let watchId: number | null = null;
+    // check for geolocation support in browser
+    if ("geolocation" in navigator) {
+      watchId = navigator.geolocation.watchPosition(
+        (position) => {
+          const { latitude, longitude, accuracy } = position.coords;
+          setPosition({ lat: latitude, lng: longitude });
+          setAccuracy(accuracy);
+
+          // map.flyTo([position.coords.latitude, position.coords.longitude], 19, {
+          //   animate: true,
+          //   duration: 1.5,
+          // });
+          setLocationStatus("accessed");
+        },
+        (error) => {
+          switch (error.code) {
+            case error.PERMISSION_DENIED:
+              setLocationStatus("denied");
+              break;
+            case error.POSITION_UNAVAILABLE:
+              setLocationStatus("unknown");
+              break;
+            case error.TIMEOUT:
+              setLocationStatus("error");
+              break;
+            default:
+              setLocationStatus("error");
+              break;
+          }
+        }
+      );
+      return () => {
+        if (watchId) {
+          navigator.geolocation.clearWatch(watchId);
+        }
+      };
+    }
+  }, []);
+
+  useEffect(() => {
+    if (position) {
+      // console.log(`Position moved: ${position.lat} ${position.lng}`);
+      const markerLatLng = latLng(position.lat, position.lng);
+      const userMarkerInView = map.getBounds().contains(markerLatLng);
+      setUserMarkerInView(userMarkerInView);
+      if (userMarkerInView && prevPosition) {
+        const distance = markerLatLng.distanceTo(prevPosition);
+        // console.log(`Distance: ${distance}`);
+        const thresholdDistance = 5;
+        if (distance > thresholdDistance) {
+          map.flyTo([position.lat, position.lng], map.getZoom(), {
+            animate: true,
+            duration: 1,
+          });
+        }
+      }
+      setPrevPosition(markerLatLng);
+    }
+  }, [position]);
+
   return position === null ? null : (
-    <Marker position={position}>
-      {/* <Marker position={position} icon={userMarkerIcon}> */}
-      <Popup>
-        You are in this area.
-      </Popup>
-    </Marker>
+    <>
+      <Marker position={position}>
+        <Popup>You are in this area.</Popup>
+      </Marker>
+      {accuracy !== null && (
+        <Circle
+          center={[position.lat, position.lng]}
+          radius={accuracy}
+          // pathOptions={{ color: "blue", fillColor: "blue" }}
+        />
+      )}
+    </>
   );
 }
+// function UserLocationMarker() {
+//   const [position, setPosition] = useState<[number, number] | null>(null);
+
+//   const map = useMap();
+
+//   useEffect(() => {
+//     map.locate().on("locationfound", function (e) {
+//       const { lat, lng } = e.latlng;
+//       setPosition([lat, lng]);
+//       map.flyTo(e.latlng, 18, { animate: true, duration: 1.5 });
+//       const radius = e.accuracy;
+//       const circle = L.circle(e.latlng, radius);
+//       circle.addTo(map);
+//     });
+//   }, [map]);
+
+//   return position === null ? null : (
+//     <Marker position={position}>
+//       {/* <Marker position={position} icon={userMarkerIcon}> */}
+//       <Popup>You are in this area.</Popup>
+//     </Marker>
+//   );
+// }
 
 const MapComponent: FC = () => {
   const [userCoordinates, setUserCoordinates] =
@@ -119,19 +219,19 @@ const MapComponent: FC = () => {
   const mapRef = useRef<any | null>(null); // Declare useRef to reference map
   const maxZoom = 20;
 
-  useEffect(() => {
-    const fetchUserCoords = async () => {
-      try {
-        const userCoords = await getUserCoordinates();
-         console.log("User coordinates:", userCoords);
-        setUserCoordinates(userCoords);
-      } catch (error) {
-        console.error(error);
-      }
-    };
+  // useEffect(() => {
+  //   const fetchUserCoords = async () => {
+  //     try {
+  //       const userCoords = await getUserCoordinates();
+  //       // console.log("User coordinates:", userCoords);
+  //       setUserCoordinates(userCoords);
+  //     } catch (error) {
+  //       console.error(error);
+  //     }
+  //   };
 
-    fetchUserCoords();
-  }, []);
+  //   fetchUserCoords();
+  // }, []);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -139,16 +239,15 @@ const MapComponent: FC = () => {
         setLoading(true);
         try {
           const data = await getCoordinates();
-       console.log(data);
-          
+          console.log(data);
           setMarkerData(data);
         } catch (error) {
           console.error(error);
         }
         setLoading(false);
       };
-  
-      fetchData();
+
+       fetchData();
     }
   }, []);
 
@@ -166,7 +265,7 @@ const MapComponent: FC = () => {
 
     // useEffect(() => {
     //   if (userCoordinates) {
-    //     flyToMarker([userCoordinates.latitude, userCoordinates.longitude], 18);
+    //     flyToMarker([userCoordinates.latitude, userCoordinates.longitude], 19);
     //   }
     // }, [userCoordinates]);
 
@@ -178,18 +277,43 @@ const MapComponent: FC = () => {
     // console.log(mapLayer);
   };
 
-  useEffect(() => {
-    const script = document.createElement('script');
-    script.src = 'https://unpkg.com/leaflet-rotate@0.2.8/dist/leaflet-rotate-src.js';
-    script.async = true;
-    document.body.appendChild(script);
+  // useEffect(() => {
+  //   const script = document.createElement("script");
+  //   script.src =
+  //     "https://unpkg.com/leaflet-rotate@0.2.8/dist/leaflet-rotate-src.js";
+  //   script.async = true;
+  //   document.body.appendChild(script);
 
-    return () => {
-      document.body.removeChild(script);
-    };
-  }, []);
+  //   return () => {
+  //     document.body.removeChild(script);
+  //   };
+  // }, []);
 
   // Return the JSX for rendering
+
+  const handlePost = async (marker: MarkerData) => {
+    try {
+      const response = await fetch('http://bike-parking.onrender.com/favorite', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(marker)
+      });
+  
+      if (!response.ok) {
+        throw new Error('Failed to post information');
+      }
+  
+      const data = await response.json();
+      console.log('Information posted successfully:', data);
+    } catch (error) {
+      console.error('Error posting information:');
+    }
+  };
+  
+
+  
   return (
     <>
       {loading && <Loader />}
@@ -212,6 +336,11 @@ const MapComponent: FC = () => {
         zoom={11}
         // maxZoom={maxZoom}
         style={{ height: "100vh", width: "100vw" }}
+        rotate={true}
+        touchRotate={true}
+        rotateControl={{
+          closeOnZeroBearing: false,
+        }}
       >
         {mapLayer === "street" ? (
           <TileLayer
@@ -235,13 +364,15 @@ const MapComponent: FC = () => {
         /> */}
         {/* Conditionally render the marker */}
         {markerData && markerData.map((marker, index) => (
-        <Marker key={index} position={[marker.latitude, marker.longitude]}>
+       <Marker key={index} position={[marker.latitude, marker.longitude]}>
        <Popup>
-  {"Site ID: " + marker.Site_ID + "\n" +
-   "IFOAddress: " + marker.IFOAddress + "\n" +
-   "Rack_Type: " + marker.RackType}
-</Popup>
-        </Marker>
+         {"Site ID: " + marker.Site_ID + "\n" +
+         "IFOAddress: " + marker.IFOAddress + "\n" +
+         "Rack_Type: " + marker.RackType}
+         <button onClick={() => handlePost(marker)}>Post Information</button>
+       </Popup>
+     </Marker>
+     
       ))}
         <UserLocationMarker />
         <ZoomHandler />
