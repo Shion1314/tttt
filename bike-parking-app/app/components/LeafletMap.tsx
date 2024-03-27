@@ -190,7 +190,7 @@ const MapComponent: FC = () => {
   }, []);
   const handlePost = async (marker: MarkerData) => {
     try {
-      const response = await fetch('http://bike-parking.onrender.com/favorite', {
+      const response = await fetch('https://bike-parking.onrender.com/favorite', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
