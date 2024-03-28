@@ -14,6 +14,7 @@ import getCoordinates from "../lib/getCoordinates";
 import getUserCoordinates from "../lib/getUserCoordinates";
 import { Layers } from "./svgs";
 import L from "leaflet";
+import axios from 'axios';
 
 interface MarkerData {
   x_coordinate: number;
@@ -190,22 +191,20 @@ const MapComponent: FC = () => {
   }, []);
   const handlePost = async (marker: MarkerData) => {
     try {
-      const response = await fetch('https://localhost:3001/favorite', {
-        method: 'POST',
+      const response = await axios.post('http://localhost:3001/favorite', marker, {
         headers: {
           'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(marker)
+        }
       });
   
-      if (!response.ok) {
+      // Check if the response status is in the range of 200 to 299
+      if (response.status >= 200 && response.status < 300) {
+        console.log('Information posted successfully:', response.data);
+      } else {
         throw new Error('Failed to post information');
       }
-  
-      const data = await response.json();
-      console.log('Information posted successfully:', data);
     } catch (error) {
-      console.error('Error posting information:');
+      console.error('Error posting information:', error);
     }
   };
   
