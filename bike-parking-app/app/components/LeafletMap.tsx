@@ -191,7 +191,7 @@ const MapComponent: FC = () => {
   }, []);
   const handlePost = async (marker: MarkerData) => {
     try {
-      const response = await axios.post('https://bike-parking.onrender.com/favorite', marker, {
+      const response = await axios.post('http://bike-parking.onrender.com/favorite', marker, {
         headers: {
           'Content-Type': 'application/json'
         }
